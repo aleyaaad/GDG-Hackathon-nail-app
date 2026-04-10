@@ -17,6 +17,9 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
+// 🔥 Gemini test import
+import { testGeminiConnection } from "../../gemini/geminiClient";
+
 export default function HomeScreen() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
@@ -34,6 +37,18 @@ export default function HomeScreen() {
     router.push("/profile");
   };
 
+  // 🔥 Gemini test function
+  const handleTestGemini = async () => {
+    try {
+      const result = await testGeminiConnection();
+      console.log("Gemini test result:", result);
+      alert(JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.log("Gemini test error:", error);
+      alert("Gemini test failed");
+    }
+  };
+
   useEffect(() => {
     const currentUser = auth.currentUser;
 
@@ -41,8 +56,6 @@ export default function HomeScreen() {
       setLoadingProfiles(false);
       return;
     }
-
-    console.log("Current user UID:", currentUser.uid);
 
     const profilesRef = collection(db, "profiles");
     const q = query(profilesRef, where("ownerUid", "==", currentUser.uid));
@@ -54,8 +67,6 @@ export default function HomeScreen() {
           id: doc.id,
           ...doc.data(),
         }));
-
-        console.log("Profiles loaded:", loadedProfiles);
 
         setProfiles(loadedProfiles);
         setLoadingProfiles(false);
@@ -78,6 +89,11 @@ export default function HomeScreen() {
 
       <TouchableOpacity style={styles.primaryButton} onPress={handleCreateProfile}>
         <Text style={styles.primaryButtonText}>Create Your Measurements</Text>
+      </TouchableOpacity>
+
+      {/* 🔥 Gemini test button */}
+      <TouchableOpacity style={styles.primaryButton} onPress={handleTestGemini}>
+        <Text style={styles.primaryButtonText}>Test Gemini</Text>
       </TouchableOpacity>
 
       <View style={styles.section}>
@@ -154,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     paddingVertical: 16,
     borderRadius: 12,
-    marginBottom: 30,
+    marginBottom: 20,
   },
   primaryButtonText: {
     color: "#fff",
