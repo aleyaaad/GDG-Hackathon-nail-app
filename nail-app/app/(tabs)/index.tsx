@@ -26,9 +26,9 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Nail Sizing App 💅</Text>
+      <Text style={styles.title}>nail sizing app </Text>
       <Text style={styles.subtitle}>
-        Get accurate nail measurements and compare them with brand sizing charts.
+        input some catch phrase here
       </Text>
 
       <TouchableOpacity style={styles.primaryButton} onPress={handleCreateProfile}>
