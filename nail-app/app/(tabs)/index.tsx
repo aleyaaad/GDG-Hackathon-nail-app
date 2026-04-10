@@ -3,14 +3,18 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebaseConfig";
 
+
 export default function HomeScreen() {
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.log("Logout error:", error);
-    }
-  };
+  console.log("LOGOUT CLICKED");
+
+  try {
+    await signOut(auth);
+    console.log("SIGNED OUT SUCCESSFULLY");
+  } catch (error) {
+    console.log("Logout error:", error);
+  }
+};
 
   return (
     <View style={styles.container}>
