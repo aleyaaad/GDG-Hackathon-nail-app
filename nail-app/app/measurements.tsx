@@ -128,11 +128,14 @@ export default function MeasurementsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add Measurements</Text>
-      <Text style={styles.subtitle}>
-        Upload an image and let Gemini estimate the nail widths, or edit them
-        manually.
-      </Text>
+  <Text style={styles.title}>Add Measurements</Text>
+  <Text style={{ color: "red", textAlign: "center", marginBottom: 10 }}>
+    NEW LEFT/RIGHT VERSION
+  </Text>
+  <Text style={styles.subtitle}>
+    Choose a hand, upload an image, and let Gemini estimate nail widths.
+  </Text>
+      
 
       <TouchableOpacity style={styles.button} onPress={handlePickImage}>
         <Text style={styles.buttonText}>Choose Image</Text>
