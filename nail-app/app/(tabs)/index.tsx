@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebaseConfig";
-
+import { router } from "expo-router";
 
 export default function HomeScreen() {
   const handleLogout = async () => {
@@ -11,6 +11,7 @@ export default function HomeScreen() {
   try {
     await signOut(auth);
     console.log("SIGNED OUT SUCCESSFULLY");
+    router.replace("/auth");
   } catch (error) {
     console.log("Logout error:", error);
   }

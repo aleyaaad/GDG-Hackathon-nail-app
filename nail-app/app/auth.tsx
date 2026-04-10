@@ -19,6 +19,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 // our firebase system (auth and a database)
 import { auth, db } from "../firebase/firebaseConfig";
+import { router } from "expo-router";
 
 //this returns our UI and also handles logic for login page
 export default function AuthScreen() {
@@ -70,8 +71,10 @@ export default function AuthScreen() {
 
         // if all goes well, show success message
         Alert.alert("Success", "Account created successfully.");
+        router.replace("/(tabs)");
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
+        router.replace("/(tabs)");
         Alert.alert("Success", "Logged in successfully.");
       }
     } catch (error: any) {
