@@ -1,16 +1,27 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { signOut } from "firebase/auth";
-import { auth } from "../../firebase/firebaseConfig";
+import { auth, db } from "../../firebase/firebaseConfig";
 import { router } from "expo-router";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+} from "firebase/firestore";
 
 export default function HomeScreen() {
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -24,11 +35,46 @@ export default function HomeScreen() {
     router.push("/profile");
   };
 
+  const fetchProfiles = async () => {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      setLoadingProfiles(false);
+      return;
+    }
+
+    try {
+      const profilesRef = collection(db, "profiles");
+      const q = query(
+        profilesRef,
+        where("ownerUid", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      const loadedProfiles = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      setProfiles(loadedProfiles);
+    } catch (error) {
+      console.log("Error fetching profiles:", error);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>nail sizing app </Text>
+      <Text style={styles.title}>Nail Sizing App 💅</Text>
       <Text style={styles.subtitle}>
-        input some catch phrase here
+        Get accurate nail measurements and compare them with brand sizing charts.
       </Text>
 
       <TouchableOpacity style={styles.primaryButton} onPress={handleCreateProfile}>
@@ -51,6 +97,23 @@ export default function HomeScreen() {
             Review carousel will go here
           </Text>
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your Saved Profiles</Text>
+
+        {loadingProfiles ? (
+          <ActivityIndicator size="small" color="#111" />
+        ) : profiles.length === 0 ? (
+          <Text style={styles.emptyText}>No profiles yet.</Text>
+        ) : (
+          profiles.map((profile) => (
+            <View key={profile.id} style={styles.profileCard}>
+              <Text style={styles.profileName}>{profile.name}</Text>
+              <Text style={styles.profileSubtext}>Profile ID: {profile.id}</Text>
+            </View>
+          ))
+        )}
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -113,6 +176,27 @@ const styles = StyleSheet.create({
     color: "#777",
     textAlign: "center",
     paddingHorizontal: 20,
+  },
+  emptyText: {
+    color: "#777",
+    fontStyle: "italic",
+  },
+  profileCard: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: "#fafafa",
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  profileSubtext: {
+    fontSize: 12,
+    color: "#666",
   },
   logoutButton: {
     marginTop: 10,
