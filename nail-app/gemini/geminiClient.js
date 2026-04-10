@@ -7,6 +7,13 @@ export const measurementModel = getGenerativeModel(ai, {
   model: "gemini-2.5-flash",
 });
 
+function cleanGeminiJson(text) {
+  return text
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+}
+
 export async function testGeminiConnection() {
   const prompt = `
 Return ONLY valid JSON with this exact structure:
@@ -19,13 +26,14 @@ Return ONLY valid JSON with this exact structure:
   "notes": string
 }
 
-Give sample values only.
 `;
 
   const result = await measurementModel.generateContent(prompt);
-  const text = result.response.text();
+  const rawText = result.response.text();
+  const cleanedText = cleanGeminiJson(rawText);
 
-  console.log("Raw Gemini response:", text);
+  console.log("Raw Gemini response:", rawText);
+  console.log("Cleaned Gemini response:", cleanedText);
 
-  return text;
+  return JSON.parse(cleanedText);
 }

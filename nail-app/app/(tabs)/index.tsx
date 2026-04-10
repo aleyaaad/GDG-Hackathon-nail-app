@@ -40,12 +40,10 @@ export default function HomeScreen() {
 const handleTestGemini = async () => {
   try {
     const result = await testGeminiConnection();
-    console.log("Gemini test result:", result);
-    alert(typeof result === "string" ? result : JSON.stringify(result, null, 2));
+    console.log("Parsed Gemini result:", result);
+    alert(JSON.stringify(result, null, 2));
   } catch (error: any) {
     console.log("Gemini test full error:", error);
-    console.log("Gemini test error message:", error?.message);
-    console.log("Gemini test error code:", error?.code);
     alert(`Gemini test failed: ${error?.message || "Unknown error"}`);
   }
 };
