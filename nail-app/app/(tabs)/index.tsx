@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   getDocs,
   orderBy,
 } from "firebase/firestore";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -66,9 +67,11 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     fetchProfiles();
-  }, []);
+  }, [])
+);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
