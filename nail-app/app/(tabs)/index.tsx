@@ -42,8 +42,8 @@ export default function HomeScreen() {
     try {
       const result = await testGeminiConnection();
       console.log("Gemini test result:", result);
-      alert(JSON.stringify(result, null, 2));
-    } catch (error) {
+alert(result);    
+} catch (error) {
       console.log("Gemini test error:", error);
       alert("Gemini test failed");
     }
