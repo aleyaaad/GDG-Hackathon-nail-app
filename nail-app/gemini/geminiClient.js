@@ -1,5 +1,5 @@
 import { getAI, getGenerativeModel, GoogleAIBackend, Schema } from "firebase/ai";
-import app from "../firebase/firebaseApp";
+import app from "../firebase/firebaseConfig";
 
 const ai = getAI(app, { backend: new GoogleAIBackend() });
 
