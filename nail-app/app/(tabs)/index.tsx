@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,10 +14,8 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  orderBy,
+  onSnapshot,
 } from "firebase/firestore";
-import { useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -36,7 +34,7 @@ export default function HomeScreen() {
     router.push("/profile");
   };
 
-  const fetchProfiles = async () => {
+  useEffect(() => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -44,34 +42,32 @@ export default function HomeScreen() {
       return;
     }
 
-    try {
-      const profilesRef = collection(db, "profiles");
-      const q = query(
-        profilesRef,
-        where("ownerUid", "==", currentUser.uid),
-        orderBy("createdAt", "desc")
-      );
+    console.log("Current user UID:", currentUser.uid);
 
-      const querySnapshot = await getDocs(q);
+    const profilesRef = collection(db, "profiles");
+    const q = query(profilesRef, where("ownerUid", "==", currentUser.uid));
 
-      const loadedProfiles = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loadedProfiles = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      setProfiles(loadedProfiles);
-    } catch (error) {
-      console.log("Error fetching profiles:", error);
-    } finally {
-      setLoadingProfiles(false);
-    }
-  };
+        console.log("Profiles loaded:", loadedProfiles);
 
-  useFocusEffect(
-  useCallback(() => {
-    fetchProfiles();
-  }, [])
-);
+        setProfiles(loadedProfiles);
+        setLoadingProfiles(false);
+      },
+      (error) => {
+        console.log("Error listening to profiles:", error);
+        setLoadingProfiles(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -111,10 +107,19 @@ export default function HomeScreen() {
           <Text style={styles.emptyText}>No profiles yet.</Text>
         ) : (
           profiles.map((profile) => (
-            <View key={profile.id} style={styles.profileCard}>
+            <TouchableOpacity
+              key={profile.id}
+              style={styles.profileCard}
+              onPress={() =>
+                router.push({
+                  pathname: "/profile-details",
+                  params: { profileId: profile.id },
+                })
+              }
+            >
               <Text style={styles.profileName}>{profile.name}</Text>
               <Text style={styles.profileSubtext}>Profile ID: {profile.id}</Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>
