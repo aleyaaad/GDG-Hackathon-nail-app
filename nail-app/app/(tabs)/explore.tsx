@@ -1,3 +1,7 @@
+// explore page - informational tab that displays app documentation and help information
+// provides collapsible sections explaining app features and routing structure
+// serves as a reference guide for users to understand how quick nails works
+
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 

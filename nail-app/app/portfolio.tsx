@@ -1,3 +1,7 @@
+// portfolio management page - allows users to upload and manage photos of their nail work
+// users can add captions to each photo and organize their portfolio gallery
+// portfolio images are displayed on the home page to showcase work to potential clients
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -16,6 +20,7 @@ import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp } from 
 import { auth, db } from "../firebase/firebaseConfig";
 import { router } from "expo-router";
 
+// interface for portfolio image data stored in firestore
 interface PortfolioImage {
   id: string;
   imageUri: string;
@@ -24,6 +29,7 @@ interface PortfolioImage {
   createdAt: any;
 }
 
+// main portfolio management screen
 export default function PortfolioScreen() {
   const [images, setImages] = useState<PortfolioImage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +37,8 @@ export default function PortfolioScreen() {
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [caption, setCaption] = useState<string>("");
 
+  // load user's portfolio images from firestore on component mount
+  // subscribes to real-time updates so any added or deleted images instantly appear
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -58,6 +66,7 @@ export default function PortfolioScreen() {
     );
 
     return () => unsubscribe();
+  // opens the device's image library to let user select a nail work photo to add to portfolio
   }, []);
 
   const handlePickImage = async () => {
@@ -76,7 +85,9 @@ export default function PortfolioScreen() {
       Alert.alert("Error", "Could not pick image.");
     }
   };
-
+// saves selected image with optional caption to firestore portfolio collection
+  // validates that user selected an image before uploading
+  
   const handleUploadImage = async () => {
     if (!selectedImage) {
       Alert.alert("Error", "Please select an image first.");
@@ -106,6 +117,8 @@ export default function PortfolioScreen() {
       Alert.alert("Error", error.message);
     } finally {
       setUploading(false);
+  // prompts user for confirmation and then deletes portfolio image from firestore
+  // once deleted, image will no longer appear in portfolio or on home page
     }
   };
 

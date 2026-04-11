@@ -1,3 +1,7 @@
+// profile creation page - allows users to create a new client profile 
+// each profile represents a unique client that nail measurements and notes can be attached to
+// profiles are foundational to the app - everything else (measurements, notes, appointments) is organized under profiles
+
 import React, { useState } from "react";
 import {
   View,
@@ -11,11 +15,16 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { router } from "expo-router";
 
+// main profile creation screen component
 export default function ProfileScreen() {
   const [profileName, setProfileName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // saves a new profile to firestore database with empty notes and no appointment date set
+  // validates that user entered a profile name before creating
+  // clears form and navigates back to home after successful creation
   const handleCreateProfile = async () => {
+    // check if user entered a profile name
     if (!profileName.trim()) {
       Alert.alert("Missing info", "Please enter a profile name.");
       return;
@@ -31,11 +40,12 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
 
+      // create new profile document in firestore with user's id and timestamps
       await addDoc(collection(db, "profiles"), {
         ownerUid: currentUser.uid,
         name: profileName.trim(),
-        notes: "",
-        appointmentDate: null,
+        notes: "",  // initialize notes as empty string
+        appointmentDate: null,  // no appointment set yet
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

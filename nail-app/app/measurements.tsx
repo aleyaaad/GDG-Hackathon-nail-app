@@ -1,3 +1,7 @@
+// measurements page - allows users to take nail measurements for left or right hand using ai image analysis or manual input
+// users can pick an image, use gemini ai to automatically extract measurements, and save them to firestore
+// measurements are tagged with the profileid and which hand (left/right) they belong to
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -15,17 +19,20 @@ import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
 import { extractMeasurementsFromImage } from "../gemini/geminiClient";
 
+// interface for nail tip sizes - contains the label (0, 1, 2 etc) and the width in millimeters
 interface TipSize {
   label: string;
   sizeMm: string;
 }
 
+// interface for nail brands - contains the brand name and array of available tip sizes
 interface Brand {
   id: string;
   name: string;
   tipSizes: TipSize[];
 }
 
+// main measurements screen component - handles all measurement input and ai analysis
 export default function MeasurementsScreen() {
   const { profileId } = useLocalSearchParams();
 
@@ -41,6 +48,8 @@ export default function MeasurementsScreen() {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
+  // load user's nail brands from firestore in real-time whenever the component mounts
+  // this allows users to see reference brand sizes while entering measurements
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
@@ -48,6 +57,7 @@ export default function MeasurementsScreen() {
     const brandsRef = collection(db, "brands");
     const q = query(brandsRef, where("ownerUid", "==", currentUser.uid));
 
+    // subscribe to real-time updates of user's brands collection so reference section stays current
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -65,8 +75,11 @@ export default function MeasurementsScreen() {
     return () => unsubscribe();
   }, []);
 
+  // opens the device's image library to let user select a photo of their hand for nail analysis
+  // user can crop and edit the image before confirming selection
   const handlePickImage = async () => {
     try {
+      // launch image picker with editing enabled for cropping and quality set to 0.8 for faster processing
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
@@ -79,9 +92,9 @@ export default function MeasurementsScreen() {
     } catch (error) {
       console.log("Image picker error:", error);
       Alert.alert("Error", "Could not pick image.");
-    }
-  };
-
+  // uses google gemini ai to analyze the selected hand image and extract nail measurements in millimeters
+  // the ai model estimates the width of each nail bed by analyzing the photo using computer vision
+  // automatically fills in the measurement input fields with the extracted values
   const handleAnalyzeImage = async () => {
     if (!imageUri) {
       Alert.alert("No image", "Please select an image first.");
@@ -91,6 +104,7 @@ export default function MeasurementsScreen() {
     try {
       setAnalyzing(true);
 
+      // send image to gemini api for measurement extraction
       const result = await extractMeasurementsFromImage(imageUri);
 
       setThumbMm(String(result.thumbMm ?? ""));
@@ -111,7 +125,11 @@ export default function MeasurementsScreen() {
     }
   };
 
+  // saves all entered nail measurements to firestore database, tagged with profile id and hand side
+  // validates that all five fingers have measurements before saving to prevent incomplete data
+  // after successful save, navigates back to profile details page
   const handleSaveMeasurements = async () => {
+    // check if all five fingers (thumb, index, middle, ring, pinky) have measurements entered
     if (
       !thumbMm.trim() ||
       !indexMm.trim() ||
@@ -130,6 +148,7 @@ export default function MeasurementsScreen() {
       return;
     }
 
+    // validate that we have a valid profile id from route parameters
     if (!profileId || typeof profileId !== "string") {
       Alert.alert("Error", "Invalid profile ID.");
       return;
@@ -138,6 +157,7 @@ export default function MeasurementsScreen() {
     try {
       setLoading(true);
 
+      // create new measurement document in firestore with all data
       await addDoc(collection(db, "measurements"), {
         ownerUid: currentUser.uid,
         profileId: profileId,

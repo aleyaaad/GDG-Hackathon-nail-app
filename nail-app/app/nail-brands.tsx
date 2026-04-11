@@ -1,3 +1,7 @@
+// nail brands management page - allows users to create and manage their personal nail tip brand library
+// users can add nail brands with multiple tip sizes for each brand
+// brands are referenced in measurements page and profile-details page to help compare measurements
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -14,11 +18,13 @@ import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimest
 import { auth, db } from "../firebase/firebaseConfig";
 import { router } from "expo-router";
 
+// interface for nail tip sizes within a brand
 interface TipSize {
   label: string;
   sizeMm: string;
 }
 
+// interface for complete brand with all its tip sizes
 interface Brand {
   id: string;
   name: string;
@@ -27,6 +33,7 @@ interface Brand {
   createdAt: any;
 }
 
+// main nail brands management screen
 export default function NailBrandsScreen() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +41,8 @@ export default function NailBrandsScreen() {
   const [newBrandName, setNewBrandName] = useState("");
   const [newTipSizes, setNewTipSizes] = useState<TipSize[]>([{ label: "", sizeMm: "" }]);
 
+  // load user's brands from firestore on component mount
+  // subscribes to real-time updates so changes are instantly reflected
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -61,21 +70,27 @@ export default function NailBrandsScreen() {
     );
 
     return () => unsubscribe();
+  // adds a new empty tip size row to the form so user can enter more sizes for this brand
   }, []);
 
   const handleAddTipSize = () => {
     setNewTipSizes([...newTipSizes, { label: "", sizeMm: "" }]);
   };
-
+// updates a specific tip size field (label or millimeter value) at the given index
+  // accepts the array index, field name (label or sizeMm), and new value
+  
   const handleUpdateTipSize = (index: number, field: keyof TipSize, value: string) => {
     const updated = [...newTipSizes];
     updated[index][field] = value;
+  // removes a tip size row from the form at the given index (only if more than one row remains)
     setNewTipSizes(updated);
   };
 
   const handleRemoveTipSize = (index: number) => {
     if (newTipSizes.length > 1) {
       setNewTipSizes(newTipSizes.filter((_, i) => i !== index));
+  // validates and saves new brand to firestore with all entered tip sizes
+  // clears form and closes add brand modal after successful save
     }
   };
 
@@ -109,6 +124,8 @@ export default function NailBrandsScreen() {
       setNewTipSizes([{ label: "", sizeMm: "" }]);
       setAddingBrand(false);
       Alert.alert("Success", "Brand saved successfully!");
+  // prompts user for confirmation and then deletes brand from firestore database
+  // once deleted, brand will no longer appear in measurements or profile reference sections
     } catch (error: any) {
       Alert.alert("Error", error.message);
     }

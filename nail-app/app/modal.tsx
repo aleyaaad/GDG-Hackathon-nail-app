@@ -1,3 +1,6 @@
+// modal template - example modal screen (currently not used in quick nails app)
+// can be used as a reference for implementing modal dialogs in the future
+
 import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
 

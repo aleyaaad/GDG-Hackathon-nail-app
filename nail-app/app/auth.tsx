@@ -1,10 +1,11 @@
-// this file stores user info, and handles user authentication (login/signup), and shows some UI for login page
+// authentication / login page - handles user signup and login functionality
+// stores user info in firebase auth and creates user document in firestore
+// automatically redirects logged-in users away from this page
 
-
-//React - required for react native components
-// useState - store and update data in the component
+// react - required for building react native components
+// usestate - hook for storing and updating component state
 import React, { useState } from "react";
-//UI features from react native
+// firebase auth functions - create accounts, login, update user profiles
 import {
   View,
   Text,
@@ -13,27 +14,29 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-// firebase auth functioms, signup, login, set user name
+// firebase authentication functions for signup/login and profile management
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-// using firestore functions - create documents, set data, getting time stamps
+// firebase firestore functions - create documents, set data, manage timestamps
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-// our firebase system (auth and a database)
+// our firebase configuration - auth and database instances
 import { auth, db } from "../firebase/firebaseConfig";
 import { router } from "expo-router";
 
-//this returns our UI and also handles logic for login page
+// main authentication screen component - handles both login and signup modes
 export default function AuthScreen() {
-  const [isSignup, setIsSignup] = useState(false); //check if in signup, if not, then login mode
+  const [isSignup, setIsSignup] = useState(false); // toggle between signup and login modes
 
-  // stores what the user inputs
+  // form input states that store user entered data
   const [fullName, setFullName] = useState(""); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false); // if request is running, disable button
+  const [loading, setLoading] = useState(false); // disable button while request is processing
 
-  const handleAuth = async () => { // this runs when the user presses login/ sign up, async gives time for firebase to respond before going to next logic
-    // if user doesnt have an email OR doesnt have a password OR is trying to sign up but doesnt put full name - display alert and stop
+  // handles both login and signup when user presses the auth button
+  // async allows time for firebase to process request before continuing
+  const handleAuth = async () => {
+    // validate that user filled in required fields (fullname required only for signup)
     if (!email || !password || (isSignup && !fullName)) {
       Alert.alert("Missing info", "Please fill in all required fields.");
       return;
@@ -42,26 +45,26 @@ export default function AuthScreen() {
     try {
       setLoading(true);
 
-      //if a user is signing up, an account will be made in firebase auth
+      // if user is signing up, create new firebase auth account
       if (isSignup) {
-        // calls firebase auth to create a new user
+        // call firebase auth to create new user with email and password
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email.trim(),
           password
         );
 
-        // get user info from firebase response
+        // get the newly created user object from firebase response
         const user = userCredential.user;
 
-        // if the user put a full name, update their profile with that name
+        // if user entered a full name, update their profile with that name
         if (fullName.trim()) {
           await updateProfile(user, {
             displayName: fullName.trim(),
           });
         }
 
-        // create a new document in the "users" collection in firestore with the user's info
+        // create a new document in the "users" firestore collection with user info
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
           fullName: fullName.trim(),
@@ -69,10 +72,11 @@ export default function AuthScreen() {
           createdAt: serverTimestamp(),
         });
 
-        // if all goes well, show success message
+        // show success message and redirect to home
         Alert.alert("Success", "Account created successfully.");
         router.replace("/(tabs)");
       } else {
+        // user is logging in, verify credentials with firebase auth
         await signInWithEmailAndPassword(auth, email.trim(), password);
         router.replace("/(tabs)");
         Alert.alert("Success", "Logged in successfully.");
@@ -84,7 +88,6 @@ export default function AuthScreen() {
     }
   };
 
-  // MAIN UI - shows text inputs for email, password, and full name (if signing up), and a button to submit, and a button to switch between login and signup
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{isSignup ? "Create Account" : "Welcome Back"}</Text>

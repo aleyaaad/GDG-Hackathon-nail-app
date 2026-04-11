@@ -1,3 +1,7 @@
+// profile details page - displays complete profile information for a single client
+// shows measurements organized by hand, client notes, appointment dates, and available nail brand references
+// allows editing of notes and appointment dates, and provides option to add new measurements
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -13,17 +17,20 @@ import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "fi
 import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
 
+// interface for nail tip sizes
 interface TipSize {
   label: string;
   sizeMm: string;
 }
 
+// interface for nail brands
 interface Brand {
   id: string;
   name: string;
   tipSizes: TipSize[];
 }
 
+// main profile details screen component - displays all client information and measurements
 export default function ProfileDetailsScreen() {
   const { profileId } = useLocalSearchParams();
   const [profile, setProfile] = useState<any>(null);
@@ -35,6 +42,9 @@ export default function ProfileDetailsScreen() {
   const [appointmentDate, setAppointmentDate] = useState<Date | null>(null);
   const [appointmentDateString, setAppointmentDateString] = useState("");
 
+  // load profile data and measurements when component mounts
+  // subscribes to real-time updates so any changes instantly reflect on screen
+  // also loads user's brand library and separates measurements by hand side (left/right)
   useEffect(() => {
     if (!profileId || typeof profileId !== "string") {
       setLoading(false);
@@ -111,6 +121,7 @@ export default function ProfileDetailsScreen() {
     };
   }, [profileId]);
 
+  // saves updated client notes to firestore and exits edit mode
   const leftMeasurements = measurements.filter(m => m.handSide === 'left');
   const rightMeasurements = measurements.filter(m => m.handSide === 'right');
 
@@ -125,7 +136,10 @@ export default function ProfileDetailsScreen() {
       console.log("Error saving notes:", error);
     }
   };
-
+// parses the appointment date string and saves it to firestore for this client
+  // supports both yyyy-mm-dd and mm/dd/yyyy date formats
+  // shows error alert if date format is invalid
+  
   const handleDateChange = async (dateString: string) => {
     if (!dateString.trim()) return;
     
@@ -146,6 +160,7 @@ export default function ProfileDetailsScreen() {
     } catch (error) {
       console.log("Error saving appointment date:", error);
       Alert.alert("Error", "Could not save appointment date");
+  // removes the appointment date set for this client by clearing the field in firestore
     }
   };
 
@@ -157,6 +172,9 @@ export default function ProfileDetailsScreen() {
         updatedAt: new Date(),
       });
     } catch (error) {
+  // renders measurement cards for a specific hand (left or right)
+  // displays all fingers' measurements for that hand and the creation date
+  // accepts name of hand for display and array of measurements for that hand
       console.log("Error clearing appointment date:", error);
     }
   };

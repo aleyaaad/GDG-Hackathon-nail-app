@@ -1,3 +1,7 @@
+// reviews management page - allows users to add and manage client testimonials and ratings
+// users can add client names, 1-5 star ratings, and review comments
+// reviews are displayed on the home page to build social proof for potential clients
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -14,6 +18,7 @@ import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp } from 
 import { auth, db } from "../firebase/firebaseConfig";
 import { router } from "expo-router";
 
+// interface for review data stored in firestore
 interface Review {
   id: string;
   clientName: string;
@@ -23,6 +28,7 @@ interface Review {
   createdAt: any;
 }
 
+// main reviews management screen
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +37,8 @@ export default function ReviewsScreen() {
   const [rating, setRating] = useState("5");
   const [comment, setComment] = useState("");
 
+  // load user's reviews from firestore on component mount
+  // subscribes to real-time updates and sorts by most recent first
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -59,6 +67,8 @@ export default function ReviewsScreen() {
     );
 
     return () => unsubscribe();
+  // validates review data and saves it to firestore with client name, rating (1-5), and comment
+  // closes the form after successful save
   }, []);
 
   const handleAddReview = async () => {
@@ -101,6 +111,8 @@ export default function ReviewsScreen() {
     } catch (error: any) {
       Alert.alert("Error", error.message);
     }
+  // prompts user for confirmation and then deletes review from firestore
+  // once deleted, review will no longer appear in reviews list or on home page
   };
 
   const handleDeleteReview = async (reviewId: string) => {
@@ -121,6 +133,8 @@ export default function ReviewsScreen() {
             }
           },
         },
+  // converts a numeric rating (1-5) into a visual star display using star emojis
+  // filled stars (⭐) for rating count, empty stars (☆) for remainder
       ]
     );
   };

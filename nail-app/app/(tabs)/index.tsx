@@ -1,3 +1,7 @@
+// home / dashboard page - main hub displaying user's profiles, portfolio, and reviews
+// shows up to 5 portfolio images and 3 latest reviews from current logged-in user
+// provides buttons to navigate to all major app features like creating profiles, managing brands, portfolio, and reviews
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -19,9 +23,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
-
-import { testGeminiConnection } from "../../gemini/geminiClient";
-
+// interface for portfolio images
 interface PortfolioImage {
   id: string;
   imageUri: string;
@@ -29,6 +31,7 @@ interface PortfolioImage {
   ownerUid: string;
 }
 
+// interface for reviews with star ratings
 interface Review {
   id: string;
   clientName: string;
@@ -37,12 +40,14 @@ interface Review {
   ownerUid: string;
 }
 
+// main home screen component
 export default function HomeScreen() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
+  // logs out the current user and redirects to login page
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -51,30 +56,39 @@ export default function HomeScreen() {
       console.log("Logout error:", error);
     }
   };
-
+// navigates to profile creation page so user can create a new client profile
+  
   const handleCreateProfile = () => {
     router.push("/profile");
   };
-
+// navigates to nail brands management page
+  
   const handleManageBrands = () => {
     router.push("/nail-brands");
+  // navigates to portfolio management page where user can upload and manage photos
   };
 
   const handleManagePortfolio = () => {
     router.push("/portfolio");
+  // navigates to reviews management page where user can add and manage client testimonials
   };
 
   const handleManageReviews = () => {
     router.push("/reviews");
-  };
+// tests gemini ai connection by attempting to analyze a sample image with lazy initialization
+  // dynamically imports gemini client to avoid blocking app startup
+    };
 
 const handleTestGemini = async () => {
   try {
+    const { testGeminiConnection } = await import("../../gemini/geminiClient");
     const result = await testGeminiConnection();
     console.log("Parsed Gemini result:", result);
     alert(JSON.stringify(result, null, 2));
   } catch (error: any) {
     console.log("Gemini test full error:", error);
+  // load user profiles, portfolio images, and reviews from firestore on component mount
+  // subscribes to real-time updates so dashboard instantly reflects any changes
     alert(`Gemini test failed: ${error?.message || "Unknown error"}`);
   }
 };
@@ -147,6 +161,7 @@ const handleTestGemini = async () => {
 
     return () => {
       unsubscribe();
+  // converts numeric rating (1-5) to star emoji display with filled and empty stars
       imagesUnsubscribe();
       reviewsUnsubscribe();
     };
@@ -174,7 +189,7 @@ const handleTestGemini = async () => {
         <Text style={styles.primaryButtonText}>Manage Nail Brands</Text>
       </TouchableOpacity>
 
-      {/* 🔥 Gemini test button */}
+      {/*  Gemini test button */}
       <TouchableOpacity style={styles.primaryButton} onPress={handleTestGemini}>
         <Text style={styles.primaryButtonText}>Test Gemini</Text>
       </TouchableOpacity>
