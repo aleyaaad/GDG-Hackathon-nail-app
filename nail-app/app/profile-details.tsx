@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
 
@@ -28,6 +30,10 @@ export default function ProfileDetailsScreen() {
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState<Date | null>(null);
+  const [appointmentDateString, setAppointmentDateString] = useState("");
 
   useEffect(() => {
     if (!profileId || typeof profileId !== "string") {
@@ -39,7 +45,18 @@ export default function ProfileDetailsScreen() {
       try {
         const profileDoc = await getDoc(doc(db, "profiles", profileId));
         if (profileDoc.exists()) {
-          setProfile({ id: profileDoc.id, ...profileDoc.data() });
+          const profileData: any = { id: profileDoc.id, ...profileDoc.data() };
+          setProfile(profileData);
+          setNotes(profileData.notes || "");
+          if (profileData.appointmentDate) {
+            const dateStr = typeof profileData.appointmentDate === "string" 
+              ? profileData.appointmentDate 
+              : profileData.appointmentDate.toDate?.().toISOString();
+            if (dateStr) {
+              setAppointmentDate(new Date(dateStr));
+              setAppointmentDateString(dateStr.split("T")[0]); // Format as YYYY-MM-DD
+            }
+          }
         }
       } catch (error) {
         console.log("Error fetching profile:", error);
@@ -97,6 +114,53 @@ export default function ProfileDetailsScreen() {
   const leftMeasurements = measurements.filter(m => m.handSide === 'left');
   const rightMeasurements = measurements.filter(m => m.handSide === 'right');
 
+  const handleSaveNotes = async () => {
+    try {
+      await updateDoc(doc(db, "profiles", profileId as string), {
+        notes: notes,
+        updatedAt: new Date(),
+      });
+      setEditingNotes(false);
+    } catch (error) {
+      console.log("Error saving notes:", error);
+    }
+  };
+
+  const handleDateChange = async (dateString: string) => {
+    if (!dateString.trim()) return;
+    
+    try {
+      const newDate = new Date(dateString);
+      if (isNaN(newDate.getTime())) {
+        Alert.alert("Invalid date", "Please enter a valid date (YYYY-MM-DD or MM/DD/YYYY)");
+        return;
+      }
+      
+      setAppointmentDate(newDate);
+      setAppointmentDateString(dateString);
+      
+      await updateDoc(doc(db, "profiles", profileId as string), {
+        appointmentDate: newDate.toISOString(),
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.log("Error saving appointment date:", error);
+      Alert.alert("Error", "Could not save appointment date");
+    }
+  };
+
+  const handleClearAppointment = async () => {
+    setAppointmentDate(null);
+    try {
+      await updateDoc(doc(db, "profiles", profileId as string), {
+        appointmentDate: null,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.log("Error clearing appointment date:", error);
+    }
+  };
+
   const renderMeasurements = (handMeasurements: any[], handName: string) => (
     <View style={styles.handSection}>
       <Text style={styles.handTitle}>{handName} Hand Measurements</Text>
@@ -142,6 +206,91 @@ export default function ProfileDetailsScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{profile.name}</Text>
       <Text style={styles.subtitle}>Profile Details</Text>
+
+      <View style={styles.clientInfoSection}>
+        <View style={styles.notesContainer}>
+          <Text style={styles.sectionTitle}>Client Notes</Text>
+          {!editingNotes ? (
+            <View style={styles.notesDisplay}>
+              <Text style={styles.notesText}>
+                {notes || "No notes yet. Tap to add notes about this client."}
+              </Text>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => setEditingNotes(true)}
+              >
+                <Text style={styles.editButtonText}>{notes ? "Edit" : "Add Notes"}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Enter notes about this client..."
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={4}
+              />
+              <View style={styles.notesButtons}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setEditingNotes(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveNotes}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.appointmentContainer}>
+          <Text style={styles.sectionTitle}>Appointment Date</Text>
+          <View style={styles.appointmentDisplay}>
+            <Text style={styles.appointmentText}>
+              {appointmentDate
+                ? appointmentDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : "No appointment scheduled"}
+            </Text>
+            <TextInput
+              style={styles.dateInput}
+              placeholder="YYYY-MM-DD or MM/DD/YYYY"
+              value={appointmentDateString}
+              onChangeText={setAppointmentDateString}
+              placeholderTextColor="#999"
+            />
+            <View style={styles.appointmentButtons}>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => handleDateChange(appointmentDateString)}
+              >
+                <Text style={styles.dateButtonText}>
+                  {appointmentDate ? "Update" : "Set"} Date
+                </Text>
+              </TouchableOpacity>
+              {appointmentDate && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={handleClearAppointment}
+                >
+                  <Text style={styles.clearButtonText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
 
       {renderMeasurements(leftMeasurements, "Left")}
       {renderMeasurements(rightMeasurements, "Right")}
@@ -281,5 +430,131 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "500",
     marginTop: 8,
+  },
+  clientInfoSection: {
+    marginBottom: 20,
+  },
+  notesContainer: {
+    backgroundColor: "#f0f8ff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  notesDisplay: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  notesText: {
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  notesInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 100,
+    textAlignVertical: "top",
+    marginBottom: 10,
+  },
+  notesButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  editButton: {
+    backgroundColor: "#3498db",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  editButtonText: {
+    color: "#fff",
+    fontWeight: "500",
+    fontSize: 12,
+  },
+  appointmentContainer: {
+    backgroundColor: "#fff0f0",
+    padding: 16,
+    borderRadius: 12,
+  },
+  appointmentDisplay: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  appointmentText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginBottom: 12,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: "#fff",
+    color: "#333",
+  },
+  appointmentButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  dateButton: {
+    backgroundColor: "#27ae60",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    flex: 1,
+  },
+  dateButtonText: {
+    color: "#fff",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  clearButton: {
+    backgroundColor: "#e74c3c",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  clearButtonText: {
+    color: "#fff",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#95a5a6",
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  saveButton: {
+    backgroundColor: "#27ae60",
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+    marginLeft: 10,
+  },
+  saveButtonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "500",
   },
 });

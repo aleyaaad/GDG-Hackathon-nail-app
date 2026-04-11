@@ -34,6 +34,8 @@ export default function ProfileScreen() {
       await addDoc(collection(db, "profiles"), {
         ownerUid: currentUser.uid,
         name: profileName.trim(),
+        notes: "",
+        appointmentDate: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

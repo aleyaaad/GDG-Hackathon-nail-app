@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Image,
+  FlatList,
 } from "react-native";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebase/firebaseConfig";
@@ -17,11 +19,28 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
-// 🔥 Gemini test import
+
 import { testGeminiConnection } from "../../gemini/geminiClient";
+
+interface PortfolioImage {
+  id: string;
+  imageUri: string;
+  caption: string;
+  ownerUid: string;
+}
+
+interface Review {
+  id: string;
+  clientName: string;
+  rating: number;
+  comment: string;
+  ownerUid: string;
+}
 
 export default function HomeScreen() {
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   const handleLogout = async () => {
@@ -39,6 +58,14 @@ export default function HomeScreen() {
 
   const handleManageBrands = () => {
     router.push("/nail-brands");
+  };
+
+  const handleManagePortfolio = () => {
+    router.push("/portfolio");
+  };
+
+  const handleManageReviews = () => {
+    router.push("/reviews");
   };
 
 const handleTestGemini = async () => {
@@ -80,12 +107,61 @@ const handleTestGemini = async () => {
       }
     );
 
-    return () => unsubscribe();
+    // Load portfolio images
+    const imagesRef = collection(db, "portfolioImages");
+    const imagesUnsubscribe = onSnapshot(
+      imagesRef,
+      (snapshot) => {
+        const loadedImages = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as PortfolioImage))
+          .filter((img) => img.ownerUid === currentUser.uid)
+          .slice(0, 5); // Show only first 5
+        setPortfolioImages(loadedImages);
+      },
+      (error) => {
+        console.log("Error loading portfolio images:", error);
+      }
+    );
+
+    // Load reviews
+    const reviewsRef = collection(db, "reviews");
+    const reviewsUnsubscribe = onSnapshot(
+      reviewsRef,
+      (snapshot) => {
+        const loadedReviews = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as Review))
+          .filter((review) => review.ownerUid === currentUser.uid)
+          .slice(0, 3); // Show only first 3
+        setReviews(loadedReviews);
+      },
+      (error) => {
+        console.log("Error loading reviews:", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      imagesUnsubscribe();
+      reviewsUnsubscribe();
+    };
   }, []);
+
+  const renderStars = (rating: number) => {
+    return Array(5)
+      .fill(0)
+      .map((_, i) => (i < rating ? "⭐" : "☆"))
+      .join(" ");
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Nail Sizing App 💅</Text>
+      <Text style={styles.title}>Quick Nails</Text>
       <Text style={styles.subtitle}>
         Get accurate nail measurements and compare them with brand sizing charts.
       </Text>
@@ -105,20 +181,58 @@ const handleTestGemini = async () => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Completed Nail Clients</Text>
-        <View style={styles.placeholderBox}>
-          <Text style={styles.placeholderText}>
-            Carousel / photo showcase will go here
-          </Text>
-        </View>
+        <TouchableOpacity style={styles.manageButton} onPress={handleManagePortfolio}>
+          <Text style={styles.manageButtonText}>Manage Portfolio</Text>
+        </TouchableOpacity>
+        {portfolioImages.length === 0 ? (
+          <View style={styles.placeholderBox}>
+            <Text style={styles.placeholderText}>
+              No portfolio images yet. Add your first photo!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={portfolioImages}
+            renderItem={({ item }) => (
+              <View style={styles.portfolioCard}>
+                <Image source={{ uri: item.imageUri }} style={styles.portfolioImage} />
+                {item.caption && <Text style={styles.portfolioCaption}>{item.caption}</Text>}
+              </View>
+            )}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            horizontal={false}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Reviews</Text>
-        <View style={styles.placeholderBox}>
-          <Text style={styles.placeholderText}>
-            Review carousel will go here
-          </Text>
-        </View>
+        <TouchableOpacity style={styles.manageButton} onPress={handleManageReviews}>
+          <Text style={styles.manageButtonText}>Manage Reviews</Text>
+        </TouchableOpacity>
+        {reviews.length === 0 ? (
+          <View style={styles.placeholderBox}>
+            <Text style={styles.placeholderText}>
+              No reviews yet. Add your first client review!
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={reviews}
+            renderItem={({ item }) => (
+              <View style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <Text style={styles.reviewClientName}>{item.clientName}</Text>
+                  <Text style={styles.reviewRating}>{renderStars(item.rating)}</Text>
+                </View>
+                <Text style={styles.reviewComment}>{item.comment}</Text>
+              </View>
+            )}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
@@ -237,5 +351,57 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "red",
     fontWeight: "500",
+  },
+  manageButton: {
+    backgroundColor: "#3498db",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  manageButtonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  portfolioCard: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#f9f9f9",
+  },
+  portfolioImage: {
+    width: "100%",
+    height: 200,
+  },
+  portfolioCaption: {
+    fontSize: 14,
+    padding: 10,
+    color: "#555",
+    fontStyle: "italic",
+  },
+  reviewCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#f39c12",
+  },
+  reviewHeader: {
+    marginBottom: 8,
+  },
+  reviewClientName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  reviewRating: {
+    fontSize: 14,
+  },
+  reviewComment: {
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 20,
   },
 });
