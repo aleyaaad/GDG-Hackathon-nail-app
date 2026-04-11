@@ -11,10 +11,22 @@ import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/fire
 import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
 
+interface TipSize {
+  label: string;
+  sizeMm: string;
+}
+
+interface Brand {
+  id: string;
+  name: string;
+  tipSizes: TipSize[];
+}
+
 export default function ProfileDetailsScreen() {
   const { profileId } = useLocalSearchParams();
   const [profile, setProfile] = useState<any>(null);
   const [measurements, setMeasurements] = useState<any[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +49,7 @@ export default function ProfileDetailsScreen() {
     const measurementsRef = collection(db, "measurements");
     const q = query(measurementsRef, where("profileId", "==", profileId));
 
-    const unsubscribe = onSnapshot(
+    const unsubscribeMeasurements = onSnapshot(
       q,
       (snapshot) => {
         const loadedMeasurements = snapshot.docs.map((doc) => ({
@@ -53,8 +65,33 @@ export default function ProfileDetailsScreen() {
       }
     );
 
+    const currentUser = auth.currentUser;
+    let unsubscribeBrands: () => void = () => {};
+
+    if (currentUser) {
+      const brandsRef = collection(db, "brands");
+      const brandsQuery = query(brandsRef, where("ownerUid", "==", currentUser.uid));
+
+      unsubscribeBrands = onSnapshot(
+        brandsQuery,
+        (snapshot) => {
+          const loadedBrands = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as Brand));
+          setBrands(loadedBrands);
+        },
+        (error) => {
+          console.log("Error loading brands:", error);
+        }
+      );
+    }
+
     fetchProfile();
-    return () => unsubscribe();
+    return () => {
+      unsubscribeMeasurements();
+      unsubscribeBrands();
+    };
   }, [profileId]);
 
   const leftMeasurements = measurements.filter(m => m.handSide === 'left');
@@ -108,6 +145,26 @@ export default function ProfileDetailsScreen() {
 
       {renderMeasurements(leftMeasurements, "Left")}
       {renderMeasurements(rightMeasurements, "Right")}
+
+      <View style={styles.brandsSection}>
+        <Text style={styles.sectionTitle}>Nail Brand Reference</Text>
+        {brands.length === 0 ? (
+          <Text style={styles.noBrands}>No brands added yet. Go to Manage Nail Brands to add some.</Text>
+        ) : (
+          brands.map((brand) => (
+            <View key={brand.id} style={styles.brandCard}>
+              <Text style={styles.brandName}>{brand.name}</Text>
+              <View style={styles.tipSizesContainer}>
+                {brand.tipSizes.map((tip, index) => (
+                  <Text key={index} style={styles.tipSizeText}>
+                    {tip.label}: {tip.sizeMm}mm
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))
+        )}
+      </View>
 
       <TouchableOpacity
         style={styles.button}
@@ -173,6 +230,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#777",
     marginTop: 8,
+  },
+  brandsSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  noBrands: {
+    color: "#777",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+  brandCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  tipSizesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  tipSizeText: {
+    fontSize: 14,
+    color: "#555",
+    marginRight: 16,
+    marginBottom: 4,
   },
   button: {
     backgroundColor: "#111",

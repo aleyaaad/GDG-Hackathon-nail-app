@@ -37,6 +37,10 @@ export default function HomeScreen() {
     router.push("/profile");
   };
 
+  const handleManageBrands = () => {
+    router.push("/nail-brands");
+  };
+
 const handleTestGemini = async () => {
   try {
     const result = await testGeminiConnection();
@@ -88,6 +92,10 @@ const handleTestGemini = async () => {
 
       <TouchableOpacity style={styles.primaryButton} onPress={handleCreateProfile}>
         <Text style={styles.primaryButtonText}>Create Your Measurements</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.primaryButton} onPress={handleManageBrands}>
+        <Text style={styles.primaryButtonText}>Manage Nail Brands</Text>
       </TouchableOpacity>
 
       {/* 🔥 Gemini test button */}

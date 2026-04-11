@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,21 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
 import { extractMeasurementsFromImage } from "../gemini/geminiClient";
+
+interface TipSize {
+  label: string;
+  sizeMm: string;
+}
+
+interface Brand {
+  id: string;
+  name: string;
+  tipSizes: TipSize[];
+}
 
 export default function MeasurementsScreen() {
   const { profileId } = useLocalSearchParams();
@@ -24,10 +35,35 @@ export default function MeasurementsScreen() {
   const [ringMm, setRingMm] = useState("");
   const [pinkyMm, setPinkyMm] = useState("");
   const [handSide, setHandSide] = useState("left");
+  const [brands, setBrands] = useState<Brand[]>([]);
 
   const [imageUri, setImageUri] = useState("");
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    const brandsRef = collection(db, "brands");
+    const q = query(brandsRef, where("ownerUid", "==", currentUser.uid));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loadedBrands = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Brand));
+        setBrands(loadedBrands);
+      },
+      (error) => {
+        console.log("Error loading brands:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   const handlePickImage = async () => {
     try {
@@ -208,6 +244,24 @@ export default function MeasurementsScreen() {
         keyboardType="numeric"
       />
 
+      {brands.length > 0 && (
+        <View style={styles.brandsSection}>
+          <Text style={styles.brandsTitle}>Nail Brand Reference</Text>
+          {brands.map((brand) => (
+            <View key={brand.id} style={styles.brandCard}>
+              <Text style={styles.brandName}>{brand.name}</Text>
+              <View style={styles.tipSizesContainer}>
+                {brand.tipSizes.map((tip, index) => (
+                  <Text key={index} style={styles.tipSizeText}>
+                    {tip.label}: {tip.sizeMm}mm
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.button}
         onPress={handleSaveMeasurements}
@@ -302,5 +356,40 @@ const styles = StyleSheet.create({
   },
   selectedHandText: {
     color: '#fff',
+  },
+  brandsSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
+  },
+  brandsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  brandCard: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  brandName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  tipSizesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  tipSizeText: {
+    fontSize: 14,
+    color: '#555',
+    marginRight: 12,
+    marginBottom: 2,
   },
 });
