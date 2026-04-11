@@ -92,6 +92,9 @@ export default function MeasurementsScreen() {
     } catch (error) {
       console.log("Image picker error:", error);
       Alert.alert("Error", "Could not pick image.");
+    }
+  };
+
   // uses google gemini ai to analyze the selected hand image and extract nail measurements in millimeters
   // the ai model estimates the width of each nail bed by analyzing the photo using computer vision
   // automatically fills in the measurement input fields with the extracted values
