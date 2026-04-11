@@ -23,6 +23,7 @@ export default function MeasurementsScreen() {
   const [middleMm, setMiddleMm] = useState("");
   const [ringMm, setRingMm] = useState("");
   const [pinkyMm, setPinkyMm] = useState("");
+  const [handSide, setHandSide] = useState("left");
 
   const [imageUri, setImageUri] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,6 +105,7 @@ export default function MeasurementsScreen() {
       await addDoc(collection(db, "measurements"), {
         ownerUid: currentUser.uid,
         profileId: profileId,
+        handSide: handSide,
         imageUri: imageUri || null,
         thumbMm: Number(thumbMm),
         indexMm: Number(indexMm),
@@ -129,17 +131,28 @@ export default function MeasurementsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
   <Text style={styles.title}>Add Measurements</Text>
-  <Text style={{ color: "red", textAlign: "center", marginBottom: 10 }}>
-    NEW LEFT/RIGHT VERSION
-  </Text>
   <Text style={styles.subtitle}>
     Choose a hand, upload an image, and let Gemini estimate nail widths.
   </Text>
-      
 
-      <TouchableOpacity style={styles.button} onPress={handlePickImage}>
-        <Text style={styles.buttonText}>Choose Image</Text>
-      </TouchableOpacity>
+  <View style={styles.handSelection}>
+    <TouchableOpacity
+      style={[styles.handButton, handSide === 'left' && styles.selectedHand]}
+      onPress={() => setHandSide('left')}
+    >
+      <Text style={[styles.handButtonText, handSide === 'left' && styles.selectedHandText]}>Left Hand</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={[styles.handButton, handSide === 'right' && styles.selectedHand]}
+      onPress={() => setHandSide('right')}
+    >
+      <Text style={[styles.handButtonText, handSide === 'right' && styles.selectedHandText]}>Right Hand</Text>
+    </TouchableOpacity>
+  </View>
+
+  <TouchableOpacity style={styles.button} onPress={handlePickImage}>
+    <Text style={styles.buttonText}>Choose Image</Text>
+  </TouchableOpacity>
 
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -264,5 +277,30 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     resizeMode: "cover",
+  },
+  handSelection: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  handButton: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#f9f9f9',
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  selectedHand: {
+    backgroundColor: '#111',
+    borderColor: '#111',
+  },
+  handButtonText: {
+    textAlign: 'center',
+    color: '#555',
+  },
+  selectedHandText: {
+    color: '#fff',
   },
 });

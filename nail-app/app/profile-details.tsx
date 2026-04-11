@@ -1,205 +1,119 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
-  Image,
+  ActivityIndicator,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { useLocalSearchParams, router } from "expo-router";
-import { extractMeasurementsFromImage } from "../gemini/geminiClient";
 
-export default function MeasurementsScreen() {
+export default function ProfileDetailsScreen() {
   const { profileId } = useLocalSearchParams();
+  const [profile, setProfile] = useState<any>(null);
+  const [measurements, setMeasurements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [thumbMm, setThumbMm] = useState("");
-  const [indexMm, setIndexMm] = useState("");
-  const [middleMm, setMiddleMm] = useState("");
-  const [ringMm, setRingMm] = useState("");
-  const [pinkyMm, setPinkyMm] = useState("");
-
-  const [imageUri, setImageUri] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-
-  const handlePickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setImageUri(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.log("Image picker error:", error);
-      Alert.alert("Error", "Could not pick image.");
-    }
-  };
-
-  const handleAnalyzeImage = async () => {
-    if (!imageUri) {
-      Alert.alert("No image", "Please select an image first.");
-      return;
-    }
-
-    try {
-      setAnalyzing(true);
-
-      const result = await extractMeasurementsFromImage(imageUri);
-
-      setThumbMm(String(result.thumbMm ?? ""));
-      setIndexMm(String(result.indexMm ?? ""));
-      setMiddleMm(String(result.middleMm ?? ""));
-      setRingMm(String(result.ringMm ?? ""));
-      setPinkyMm(String(result.pinkyMm ?? ""));
-
-      Alert.alert("Success", "Measurements auto-filled from image.");
-    } catch (error: any) {
-      console.log("Gemini image analysis error:", error);
-      Alert.alert(
-        "Analysis failed",
-        error?.message || "Could not analyze image."
-      );
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const handleSaveMeasurements = async () => {
-    if (
-      !thumbMm.trim() ||
-      !indexMm.trim() ||
-      !middleMm.trim() ||
-      !ringMm.trim() ||
-      !pinkyMm.trim()
-    ) {
-      Alert.alert("Missing info", "Please fill in all measurement fields.");
-      return;
-    }
-
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) {
-      Alert.alert("Error", "No logged in user found.");
-      return;
-    }
-
+  useEffect(() => {
     if (!profileId || typeof profileId !== "string") {
-      Alert.alert("Error", "Invalid profile ID.");
+      setLoading(false);
       return;
     }
 
-    try {
-      setLoading(true);
+    const fetchProfile = async () => {
+      try {
+        const profileDoc = await getDoc(doc(db, "profiles", profileId));
+        if (profileDoc.exists()) {
+          setProfile({ id: profileDoc.id, ...profileDoc.data() });
+        }
+      } catch (error) {
+        console.log("Error fetching profile:", error);
+      }
+    };
 
-      await addDoc(collection(db, "measurements"), {
-        ownerUid: currentUser.uid,
-        profileId: profileId,
-        imageUri: imageUri || null,
-        thumbMm: Number(thumbMm),
-        indexMm: Number(indexMm),
-        middleMm: Number(middleMm),
-        ringMm: Number(ringMm),
-        pinkyMm: Number(pinkyMm),
-        createdAt: serverTimestamp(),
-      });
+    const measurementsRef = collection(db, "measurements");
+    const q = query(measurementsRef, where("profileId", "==", profileId));
 
-      Alert.alert("Success", "Measurements saved successfully.");
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loadedMeasurements = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setMeasurements(loadedMeasurements);
+        setLoading(false);
+      },
+      (error) => {
+        console.log("Error listening to measurements:", error);
+        setLoading(false);
+      }
+    );
 
-      router.replace({
-        pathname: "/profile-details",
-        params: { profileId },
-      });
-    } catch (error: any) {
-      Alert.alert("Error", error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchProfile();
+    return () => unsubscribe();
+  }, [profileId]);
+
+  const leftMeasurements = measurements.filter(m => m.handSide === 'left');
+  const rightMeasurements = measurements.filter(m => m.handSide === 'right');
+
+  const renderMeasurements = (handMeasurements: any[], handName: string) => (
+    <View style={styles.handSection}>
+      <Text style={styles.handTitle}>{handName} Hand Measurements</Text>
+      {handMeasurements.length === 0 ? (
+        <Text style={styles.noMeasurements}>No measurements yet.</Text>
+      ) : (
+        handMeasurements.map((measurement) => (
+          <View key={measurement.id} style={styles.measurementCard}>
+            <Text style={styles.measurementText}>Thumb: {measurement.thumbMm} mm</Text>
+            <Text style={styles.measurementText}>Index: {measurement.indexMm} mm</Text>
+            <Text style={styles.measurementText}>Middle: {measurement.middleMm} mm</Text>
+            <Text style={styles.measurementText}>Ring: {measurement.ringMm} mm</Text>
+            <Text style={styles.measurementText}>Pinky: {measurement.pinkyMm} mm</Text>
+            <Text style={styles.measurementDate}>
+              Created: {measurement.createdAt?.toDate().toLocaleDateString()}
+            </Text>
+          </View>
+        ))
+      )}
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#111" />
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Profile not found</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add Measurements</Text>
-      <Text style={styles.subtitle}>
-        Upload an image and let Gemini estimate the nail widths, or edit them
-        manually.
-      </Text>
+      <Text style={styles.title}>{profile.name}</Text>
+      <Text style={styles.subtitle}>Profile Details</Text>
 
-      <TouchableOpacity style={styles.button} onPress={handlePickImage}>
-        <Text style={styles.buttonText}>Choose Image</Text>
-      </TouchableOpacity>
-
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.previewImage} />
-      ) : null}
-
-      <TouchableOpacity
-        style={[styles.button, styles.secondaryButton]}
-        onPress={handleAnalyzeImage}
-        disabled={analyzing}
-      >
-        <Text style={styles.buttonText}>
-          {analyzing ? "Analyzing..." : "Analyze with Gemini"}
-        </Text>
-      </TouchableOpacity>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Thumb (mm)"
-        value={thumbMm}
-        onChangeText={setThumbMm}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Index (mm)"
-        value={indexMm}
-        onChangeText={setIndexMm}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Middle (mm)"
-        value={middleMm}
-        onChangeText={setMiddleMm}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Ring (mm)"
-        value={ringMm}
-        onChangeText={setRingMm}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Pinky (mm)"
-        value={pinkyMm}
-        onChangeText={setPinkyMm}
-        keyboardType="numeric"
-      />
+      {renderMeasurements(leftMeasurements, "Left")}
+      {renderMeasurements(rightMeasurements, "Right")}
 
       <TouchableOpacity
         style={styles.button}
-        onPress={handleSaveMeasurements}
-        disabled={loading}
+        onPress={() => router.push({ pathname: "/measurements", params: { profileId } })}
       >
-        <Text style={styles.buttonText}>
-          {loading ? "Saving..." : "Save Measurements"}
-        </Text>
+        <Text style={styles.buttonText}>Add New Measurements</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.back()}>
@@ -216,6 +130,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   title: {
     fontSize: 28,
     fontWeight: "700",
@@ -228,21 +147,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
+  handSection: {
+    marginBottom: 20,
+  },
+  handTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  noMeasurements: {
+    color: "#777",
+    fontStyle: "italic",
+  },
+  measurementCard: {
+    backgroundColor: "#f9f9f9",
+    padding: 16,
     borderRadius: 10,
-    padding: 14,
-    marginBottom: 14,
+    marginBottom: 10,
+  },
+  measurementText: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  measurementDate: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 8,
   },
   button: {
     backgroundColor: "#111",
     padding: 16,
     borderRadius: 10,
     marginBottom: 14,
-  },
-  secondaryButton: {
-    backgroundColor: "#444",
   },
   buttonText: {
     color: "#fff",
@@ -254,12 +190,5 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "500",
     marginTop: 8,
-  },
-  previewImage: {
-    width: "100%",
-    height: 220,
-    borderRadius: 12,
-    marginBottom: 16,
-    resizeMode: "cover",
   },
 });
